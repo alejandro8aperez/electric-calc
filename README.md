@@ -1,9 +1,36 @@
-# electric-calc
+# Electric Calc
 
-Calculadora eléctrica publicada en GitHub Pages.
+Calculadora eléctrica para dimensionamiento de instalaciones de uso final: conductor, caída de tensión, protección térmica, cortocircuito, tubería y puesta a tierra. Incluye coordinación de protecciones (selectividad).
+
+## Normas aplicadas
+
+IEEE 141 · NEC (240, 250, 310) · RETIE · IEC 60947-2
+
+## Características
+
+- Dimensionamiento de conductores (cobre/aluminio) por ampacidad con corrección por temperatura y agrupamiento
+- Regulación de tensión (monofásico/trifásico) y cumplimiento normativo
+- Cortocircuito, selección de tubería y puesta a tierra
+- Coordinación de protecciones (selectividad ≥ 1.6×, capacidad de ruptura)
+- Proyectos guardados en el navegador (localStorage) — sin backend ni login
+
+## Desarrollo
+
+```bash
+npm install
+npm run dev
+```
+
+## Build
+
+```bash
+npm run build
+```
 
 ## Despliegue
 
-La página se publica automáticamente con GitHub Actions en cada push a la rama `main`.
+GitHub Actions despliega `dist/` en GitHub Pages en cada push a `main`.
 
-> Nota: el `index.html` actual es una copia del proyecto Base44 y referencia `/src/main.jsx` y `/manifest.json`, que deben estar en la raíz para que la app funcione por completo.
+## Demo
+
+https://alejandro8aperez.github.io/electric-calc/
