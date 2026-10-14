@@ -10,6 +10,8 @@ import Coordination from '@/pages/Coordination'
 import Transformer from '@/pages/Transformer'
 import Motors from '@/pages/Motors'
 import PowerBalance from '@/pages/PowerBalance'
+import Catalog from '@/pages/Catalog'
+import Bom from '@/pages/Bom'
 import Report from '@/pages/Report'
 import PageNotFound from '@/lib/PageNotFound'
 
@@ -26,6 +28,8 @@ function App() {
             <Route path="/transformer" element={<Transformer />} />
             <Route path="/motors" element={<Motors />} />
             <Route path="/balance" element={<PowerBalance />} />
+            <Route path="/catalog" element={<Catalog />} />
+            <Route path="/bom" element={<Bom />} />
             <Route path="/report" element={<Report />} />
           </Route>
           <Route path="*" element={<PageNotFound />} />
