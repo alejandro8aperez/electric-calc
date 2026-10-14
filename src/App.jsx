@@ -12,6 +12,7 @@ import Motors from '@/pages/Motors'
 import PowerBalance from '@/pages/PowerBalance'
 import Catalog from '@/pages/Catalog'
 import Bom from '@/pages/Bom'
+import Schematic from '@/pages/Schematic'
 import Report from '@/pages/Report'
 import PageNotFound from '@/lib/PageNotFound'
 
@@ -30,6 +31,7 @@ function App() {
             <Route path="/balance" element={<PowerBalance />} />
             <Route path="/catalog" element={<Catalog />} />
             <Route path="/bom" element={<Bom />} />
+            <Route path="/schematic" element={<Schematic />} />
             <Route path="/report" element={<Report />} />
           </Route>
           <Route path="*" element={<PageNotFound />} />

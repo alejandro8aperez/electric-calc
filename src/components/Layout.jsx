@@ -1,6 +1,6 @@
 import React from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
-import { Zap, LayoutGrid, Calculator, ShieldCheck, Cpu, Gauge, Activity, BookOpen, Receipt, FileText } from 'lucide-react'
+import { Zap, LayoutGrid, Calculator, ShieldCheck, Cpu, Gauge, Activity, BookOpen, Receipt, Network, FileText } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 
 export default function Layout() {
@@ -15,6 +15,7 @@ export default function Layout() {
     { to: '/balance', label: t('nav.balance'), icon: Activity },
     { to: '/catalog', label: t('nav.catalog'), icon: BookOpen },
     { to: '/bom', label: t('nav.bom'), icon: Receipt },
+    { to: '/schematic', label: t('nav.schematic'), icon: Network },
     { to: '/coordination', label: t('nav.coordination'), icon: ShieldCheck },
     { to: '/report', label: t('nav.report'), icon: FileText },
   ]

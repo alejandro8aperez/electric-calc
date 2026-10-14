@@ -46,6 +46,7 @@ export function newProject(overrides = {}) {
     id: uid(),
     name: '',
     description: '',
+    parent_id: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     system: { ...DEFAULT_SYSTEM },
@@ -86,6 +87,12 @@ export function saveProject(project) {
 
 export function getProject(id) {
   return listProjects().find((p) => p.id === id) ?? null
+}
+
+export function setProjectParent(id, parentId) {
+  const p = getProject(id)
+  if (!p) return null
+  return saveProject({ ...p, parent_id: parentId || null })
 }
 
 export function deleteProject(id) {
