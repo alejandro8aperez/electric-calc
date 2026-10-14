@@ -17,7 +17,7 @@ IEEE 141 · NEC (220, 240, 250, 310) · RETIE · IEC 60364-4-43 / 5-52 / 5-54 ·
 - **Coordinación** — selectividad por corriente, magnética y temporal, **filiación/cascada (backup, IEC 60947-2 Anexo A)**, capacidad de interrupción y curvas tiempo-corriente.
 - **Catálogo** — base de dispositivos editable (magnetotérmicos, cajas moldeadas, diferenciales, fusibles, contactores, gabinetes, barras, bornes), precios y curvas, import/export CSV o JSON.
 - **Presupuesto (BOM)** — selección automática de materiales del tablero (protecciones por calibre/curva/poder de corte, diferenciales según tipo de carga, bornes, gabinete con reserva), cantidades y precios editables, totales con descuento/impuesto y export CSV.
-- **Esquema de red** — unifilar multinivel de la red de tableros (jerarquía aguas arriba/abajo), cascada de Icc y regulación acumulada, folios y bornera con numeración de bornes, export **DXF** (CAD), **SVG** y CSV.
+- **Esquema de red** — unifilar multinivel de la red de tableros (jerarquía aguas arriba/abajo), cascada de Icc y regulación acumulada, verificaciones normativas, folios y bornera con numeración de bornes, export **DXF** (CAD), **SVG** y CSV.
 - **Memoria de cálculo** — reporte imprimible (Imprimir → Guardar como PDF) con resumen, cuadro de cargas, unifilar y verificaciones normativas.
 
 ## Rigor de cálculo
@@ -34,6 +34,7 @@ IEEE 141 · NEC (220, 240, 250, 310) · RETIE · IEC 60364-4-43 / 5-52 / 5-54 ·
 - Conductor de electrodo de puesta a tierra por NEC 250.66.
 - Selección automática de materiales (BOM): poder de corte Icu ≥ Icc en el punto, calibre y curva por circuito, diferencial por tipo de carga y gabinete con reserva de módulos.
 - Red multinivel: Icc en barras del tablero aguas arriba alimenta al tablero aguas abajo (cascada de impedancias) y regulación de tensión acumulada hasta cada carga.
+- Verificaciones de red: caída de tensión total fuente → carga (límite 5 %), disparo ante la falta mínima (IEC 60364-4-41), verificación térmica k²S² ≥ I²t y selectividad entre niveles (IEC 60947-2). Poder de corte requerido (Icu) por tablero.
 
 ## Idiomas
 

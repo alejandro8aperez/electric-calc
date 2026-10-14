@@ -4,10 +4,11 @@ import { ArrowLeft, Download, Printer, FileCode2, Image } from 'lucide-react'
 import { listProjects, saveProject, getProject } from '@/lib/storage'
 import { computeNetwork, wouldCycle } from '@/lib/networkCalc'
 import { buildSchematic, buildTerminalSchedule, scheduleToCsv } from '@/lib/schematic'
+import { verifyNetwork } from '@/lib/networkVerify'
 import { schematicToDxf } from '@/lib/dxf'
 import { useI18n } from '@/lib/i18n'
 import NetworkDiagram from '@/components/NetworkDiagram'
-import { Panel as Card, SummaryCard } from '@/components/ui/kit'
+import { Panel as Card, SummaryCard, StatusPill } from '@/components/ui/kit'
 
 export default function Schematic() {
   const { t } = useI18n()
@@ -17,6 +18,7 @@ export default function Schematic() {
   const network = useMemo(() => computeNetwork(projects), [projects])
   const schematic = useMemo(() => buildSchematic(network), [network])
   const schedule = useMemo(() => buildTerminalSchedule(network), [network])
+  const verification = useMemo(() => verifyNetwork(network), [network])
 
   const refresh = () => setProjects(listProjects())
 
@@ -67,6 +69,11 @@ export default function Schematic() {
           <button onClick={exportDxf} className="btn-ghost"><FileCode2 className="w-4 h-4" /> DXF</button>
           <button onClick={() => window.print()} className="btn-dark"><Printer className="w-4 h-4" /> {t('common.print')}</button>
         </div>
+      </div>
+
+      <div className="hidden print:block mb-4">
+        <h1 className="text-lg font-semibold text-slate-900">{t('schematic.title')}</h1>
+        <p className="text-xs text-slate-500">{new Date().toLocaleString()}</p>
       </div>
 
       {projects.length === 0 ? (
@@ -159,6 +166,69 @@ export default function Schematic() {
               </table>
             </div>
           </Card>
+
+          <div className="mt-6 grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-6">
+            <Card title={t('verify.title')}>
+              <div className="overflow-x-auto -mx-2">
+                <table className="w-full text-xs min-w-[640px]">
+                  <thead>
+                    <tr className="text-left text-slate-500 border-b border-slate-200">
+                      <th className="py-2 px-2 font-medium">{t('verify.level')}</th>
+                      <th className="py-2 px-2 font-medium">{t('verify.scope')}</th>
+                      <th className="py-2 px-2 font-medium">{t('verify.check')}</th>
+                      <th className="py-2 px-2 font-medium">{t('verify.value')}</th>
+                      <th className="py-2 px-2 font-medium">{t('verify.limit')}</th>
+                      <th className="py-2 px-2 font-medium">OK</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {verification.findings.map((f, i) => (
+                      <tr key={i} className="border-b border-slate-100 align-top">
+                        <td className="py-1.5 px-2 text-slate-500">{f.level}</td>
+                        <td className="py-1.5 px-2 font-medium text-slate-700">{f.scope}<div className="text-[10px] text-slate-400">{f.name}</div></td>
+                        <td className="py-1.5 px-2 text-slate-600">{t(`verify.${f.check}`)}</td>
+                        <td className="py-1.5 px-2 text-slate-700">{f.value}</td>
+                        <td className="py-1.5 px-2 text-slate-500">{f.limit}</td>
+                        <td className="py-1.5 px-2"><StatusPill status={f.status} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
+            <Card title={t('verify.icu')}>
+              <div className="overflow-x-auto -mx-2">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-left text-slate-500 border-b border-slate-200">
+                      <th className="py-2 px-2 font-medium">{t('schematic.board')}</th>
+                      <th className="py-2 px-2 font-medium">{t('schematic.busIcc')}</th>
+                      <th className="py-2 px-2 font-medium">Icu ≥</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {verification.icu.map((r, i) => (
+                      <tr key={i} className="border-b border-slate-100">
+                        <td className="py-1.5 px-2 font-medium text-slate-700">{r.tag}</td>
+                        <td className="py-1.5 px-2 text-slate-700">{r.busIcc} kA</td>
+                        <td className="py-1.5 px-2 text-slate-700">{r.required} kA</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-4 flex items-center justify-between">
+                <span className="text-xs text-slate-500">{t('verify.global')}</span>
+                <StatusPill status={verification.status} />
+              </div>
+              <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+                <div><div className="text-base font-semibold text-emerald-600">{verification.counts.compliant}</div><div className="text-[10px] text-slate-400">OK</div></div>
+                <div><div className="text-base font-semibold text-amber-600">{verification.counts.review}</div><div className="text-[10px] text-slate-400">{t('verify.reviewShort')}</div></div>
+                <div><div className="text-base font-semibold text-red-600">{verification.counts.non_compliant}</div><div className="text-[10px] text-slate-400">{t('verify.failShort')}</div></div>
+              </div>
+            </Card>
+          </div>
         </>
       )}
     </div>
