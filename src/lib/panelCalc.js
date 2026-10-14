@@ -4,6 +4,7 @@ import {
   nextSize, nextBreaker, nextBreakingCapacity, getMethod,
 } from '@/lib/electricalData'
 import { ikAt, seriesZ, zFromIcc, cableZ, C_MAX, C_MIN } from '@/lib/shortCircuit60909'
+import { dailyDemand } from '@/lib/demandCalc'
 
 const round = (v, d = 2) => {
   const f = Math.pow(10, d)
@@ -39,7 +40,7 @@ export function sizeCable({ current, material = 'copper', insulation = 'PVC', me
 // ─────────────────────────────────────────────────────────────────────────────
 // Cálculo completo de un tablero de distribución
 // ─────────────────────────────────────────────────────────────────────────────
-export function computePanel(system, circuits = []) {
+export function computePanel(system, circuits = [], opts = {}) {
   const sys = {
     voltage: num(system.voltage, 220),
     phases: system.phases === 1 ? 1 : 3,
@@ -75,13 +76,26 @@ export function computePanel(system, circuits = []) {
 
   // 2. Potencia instalada y demanda
   const connectedKw = round(computed.reduce((s, c) => s + c.input.power_kw, 0), 2)
-  const demandKw = round(computed.reduce((s, c) => s + c.demandPower, 0), 2)
-  const pfAvg = computed.length
-    ? computed.reduce((s, c) => s + c.input.power_factor * c.input.power_kw, 0) / Math.max(connectedKw, 0.001)
-    : sys.power_factor
+
+  // Demanda: estática (factores) o por perfil horario (demanda máxima coincidente)
+  let demand = null
+  let demandKw
+  let pfAvg
+  let demandKva
+  if (opts.useProfiles) {
+    demand = dailyDemand(computed)
+    demandKw = demand.demandKw
+    pfAvg = demand.powerFactor
+    demandKva = demand.kva
+  } else {
+    demandKw = round(computed.reduce((s, c) => s + c.demandPower, 0), 2)
+    pfAvg = computed.length
+      ? computed.reduce((s, c) => s + c.input.power_factor * c.input.power_kw, 0) / Math.max(connectedKw, 0.001)
+      : sys.power_factor
+    demandKva = demandKw / (pfAvg || 0.9)
+  }
 
   // 3. Corriente de tablero
-  const demandKva = demandKw / (pfAvg || 0.9)
   const boardCurrent = sys.phases === 3
     ? round((demandKva * 1000) / (Math.sqrt(3) * sys.voltage), 1)
     : round((demandKva * 1000) / sys.voltage, 1)
@@ -158,6 +172,7 @@ export function computePanel(system, circuits = []) {
     maxPhase,
     isccBoard,
     recommendation,
+    demand,
     compliance: computed.every((c) => c.compliance === 'compliant' && c.regulationTotal <= 5) && imbalance <= 15 ? 'compliant' : 'review',
   }
 }

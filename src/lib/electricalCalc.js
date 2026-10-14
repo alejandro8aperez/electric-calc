@@ -230,8 +230,8 @@ function normalizeInput(raw = {}) {
     curve: raw.curve ?? (load_type === 'motor' ? 'D' : 'C'),
     protection_kind: raw.protection_kind ?? 'MCB',
     continuous: raw.continuous ?? load.continuous,
-    triplen_percent: num(raw.triplen_percent, load.triplen),
-    demand_factor: num(raw.demand_factor, load.demand),
+    triplen_percent: raw.triplen_percent == null ? load.triplen : num(raw.triplen_percent, load.triplen),
+    demand_factor: raw.demand_factor == null ? load.demand : num(raw.demand_factor, load.demand),
   }
 }
 

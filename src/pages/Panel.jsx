@@ -28,7 +28,7 @@ export default function Panel() {
   }, [projectId])
 
   const panel = useMemo(() => {
-    try { return computePanel(project.system, project.circuits) }
+    try { return computePanel(project.system, project.circuits, { useProfiles: !!project.system.use_profiles }) }
     catch { return null }
   }, [project])
 
@@ -198,6 +198,14 @@ export default function Panel() {
                   onChange={(e) => updateSystem('feeder_length_m', +e.target.value)} />
               </Field>
             </div>
+            <label className="col-span-2 flex items-start gap-2 text-xs text-slate-600 cursor-pointer">
+              <input type="checkbox" className="mt-0.5" checked={!!project.system.use_profiles}
+                onChange={(e) => updateSystem('use_profiles', e.target.checked)} />
+              <span>
+                {t('demand.profileMode')}
+                <span className="block text-[11px] text-slate-400">{t('demand.profileHint')}</span>
+              </span>
+            </label>
           </div>
 
           <div className="mt-5 pt-4 border-t border-slate-100">
@@ -330,6 +338,20 @@ export default function Panel() {
             </div>
           </div>
 
+          {panel?.demand && (
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <h2 className="text-sm font-semibold text-slate-900 mb-3">{t('demand.title')}</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                <SummaryCard label={t('demand.peak')} value={`${panel.demand.demandKw} kW`} accent="amber" />
+                <SummaryCard label={t('demand.peakHour')}
+                  value={`${String(panel.demand.peakHour).padStart(2, '0')}:00`} />
+                <SummaryCard label={t('demand.coincidence')} value={panel.demand.coincidence} />
+                <SummaryCard label={t('demand.installed')} value={`${panel.demand.installedKw} kW`} />
+              </div>
+              <DemandChart series={panel.demand.series} peakHour={panel.demand.peakHour} />
+            </div>
+          )}
+
           {panel && <OneLineDiagram panel={panel} title={t('common.graph')} />}
         </section>
       </div>
@@ -350,6 +372,25 @@ function PhaseBars({ currents }) {
           <span className="w-16 text-right text-[11px] text-slate-600">{currents[p]} A</span>
         </div>
       ))}
+    </div>
+  )
+}
+
+function DemandChart({ series, peakHour }) {
+  const max = Math.max(...series, 0.001)
+  return (
+    <div>
+      <div className="flex items-end gap-[2px] h-28 border-b border-l border-slate-200 pl-1">
+        {series.map((v, h) => (
+          <div key={h} className="flex-1 flex flex-col justify-end items-center" title={`${String(h).padStart(2, '0')}:00 · ${v} kW`}>
+            <div className={`w-full rounded-t-sm ${h === peakHour ? 'bg-amber-500' : 'bg-sky-300'}`}
+              style={{ height: `${(v / max) * 100}%` }} />
+          </div>
+        ))}
+      </div>
+      <div className="flex justify-between text-[10px] text-slate-400 mt-1 pl-1">
+        <span>00</span><span>06</span><span>12</span><span>18</span><span>23</span>
+      </div>
     </div>
   )
 }

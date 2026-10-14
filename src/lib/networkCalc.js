@@ -9,7 +9,7 @@ const round = (v, d = 2) => {
   return Math.round(v * f) / f
 }
 
-export function computeNetwork(projects = []) {
+export function computeNetwork(projects = [], opts = {}) {
   const byId = new Map(projects.map((p) => [p.id, p]))
 
   const childrenOf = new Map()
@@ -31,7 +31,7 @@ export function computeNetwork(projects = []) {
       : p.system
 
     let panel = null
-    try { panel = computePanel(system, p.circuits ?? []) } catch { panel = null }
+    try { panel = computePanel(system, p.circuits ?? [], { useProfiles: opts.useProfiles }) } catch { panel = null }
 
     const busIcc = panel?.isccBoard?.isccKa ?? Number(system.source_icc_ka) ?? 0
     const feederReg = panel?.feeder?.regulation ?? 0

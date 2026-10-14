@@ -5,6 +5,7 @@ import { listProjects, saveProject, getProject } from '@/lib/storage'
 import { computeNetwork, wouldCycle } from '@/lib/networkCalc'
 import { buildSchematic, buildTerminalSchedule, scheduleToCsv } from '@/lib/schematic'
 import { verifyNetwork } from '@/lib/networkVerify'
+import { networkLoadFlow } from '@/lib/demandCalc'
 import { schematicToDxf } from '@/lib/dxf'
 import { useI18n } from '@/lib/i18n'
 import NetworkDiagram from '@/components/NetworkDiagram'
@@ -13,12 +14,14 @@ import { Panel as Card, SummaryCard, StatusPill } from '@/components/ui/kit'
 export default function Schematic() {
   const { t } = useI18n()
   const [projects, setProjects] = useState(() => listProjects())
+  const [useProfiles, setUseProfiles] = useState(false)
   const svgRef = useRef(null)
 
-  const network = useMemo(() => computeNetwork(projects), [projects])
+  const network = useMemo(() => computeNetwork(projects, { useProfiles }), [projects, useProfiles])
   const schematic = useMemo(() => buildSchematic(network), [network])
   const schedule = useMemo(() => buildTerminalSchedule(network), [network])
   const verification = useMemo(() => verifyNetwork(network), [network])
+  const loadFlow = useMemo(() => (useProfiles ? networkLoadFlow(network) : []), [network, useProfiles])
 
   const refresh = () => setProjects(listProjects())
 
@@ -64,6 +67,10 @@ export default function Schematic() {
           <p className="text-sm text-slate-500 mt-1">{t('schematic.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap print:hidden">
+          <label className="inline-flex items-center gap-1.5 text-xs text-slate-600 mr-1 cursor-pointer">
+            <input type="checkbox" checked={useProfiles} onChange={(e) => setUseProfiles(e.target.checked)} />
+            {t('flow.profileMode')}
+          </label>
           <button onClick={exportCsv} className="btn-ghost"><Download className="w-4 h-4" /> CSV</button>
           <button onClick={exportSvg} className="btn-ghost"><Image className="w-4 h-4" /> SVG</button>
           <button onClick={exportDxf} className="btn-ghost"><FileCode2 className="w-4 h-4" /> DXF</button>
@@ -229,6 +236,41 @@ export default function Schematic() {
               </div>
             </Card>
           </div>
+
+          {useProfiles && loadFlow.length > 0 && (
+            <div className="mt-6">
+              <Card title={t('flow.title')}>
+                <div className="overflow-x-auto -mx-2">
+                  <table className="w-full text-xs min-w-[720px]">
+                    <thead>
+                      <tr className="text-left text-slate-500 border-b border-slate-200">
+                        <th className="py-2 px-2 font-medium">{t('schematic.board')}</th>
+                        <th className="py-2 px-2 font-medium">{t('verify.level')}</th>
+                        <th className="py-2 px-2 font-medium">{t('flow.peak')}</th>
+                        <th className="py-2 px-2 font-medium">{t('demand.peakHour')}</th>
+                        <th className="py-2 px-2 font-medium">{t('flow.current')}</th>
+                        <th className="py-2 px-2 font-medium">{t('flow.busVoltage')}</th>
+                        <th className="py-2 px-2 font-medium">{t('schematic.cumReg')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loadFlow.map((r) => (
+                        <tr key={r.id} className="border-b border-slate-100">
+                          <td className="py-1.5 px-2 font-medium text-slate-700">{r.tag} · {r.name}</td>
+                          <td className="py-1.5 px-2 text-slate-500">{r.level}</td>
+                          <td className="py-1.5 px-2 text-slate-700">{r.peakKw} kW · {r.peakKva} kVA</td>
+                          <td className="py-1.5 px-2 text-slate-500">{String(r.peakHour).padStart(2, '0')}:00</td>
+                          <td className="py-1.5 px-2 text-slate-700">{r.current} A</td>
+                          <td className="py-1.5 px-2 text-slate-700">{r.busVoltage} V</td>
+                          <td className={`py-1.5 px-2 font-medium ${r.accumReg > 5 ? 'text-red-600' : 'text-slate-700'}`}>{r.accumReg} %</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </div>
+          )}
         </>
       )}
     </div>
