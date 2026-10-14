@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Shield, CheckCircle2, XCircle } from 'lucide-react'
-import { selectInterruptingCapacity, checkSelectivity, checkCascade } from '@/lib/coordinationCalc'
+import { selectInterruptingCapacity, checkSelectivity, checkCascade, checkFiliation, selectivityRatio } from '@/lib/coordinationCalc'
 import { BREAKER_CURVE_TYPES } from '@/lib/electricalData'
 import { useI18n } from '@/lib/i18n'
 import { Field, SummaryCard, Row, Panel as Card } from '@/components/ui/kit'
 
 export default function Coordination() {
   const { t } = useI18n()
-  const [upstream, setUpstream] = useState({ rating: 250, curve: 'C' })
-  const [downstream, setDownstream] = useState({ rating: 100, curve: 'C' })
+  const [upstream, setUpstream] = useState({ rating: 250, curve: 'C', technology: 'MCCB' })
+  const [downstream, setDownstream] = useState({ rating: 100, curve: 'C', technology: 'MCB' })
   const [icc, setIcc] = useState(15)
 
   const result = useMemo(() => {
@@ -17,6 +17,7 @@ export default function Coordination() {
     return {
       icRating: selectInterruptingCapacity(icc),
       selectivity: checkSelectivity(upstream, downstream, icc),
+      filiation: checkFiliation(upstream, downstream, icc),
       cascade: checkCascade([
         { name: 'Aguas arriba', ...upstream },
         { name: 'Aguas abajo', ...downstream },
@@ -25,6 +26,7 @@ export default function Coordination() {
   }, [upstream, downstream, icc])
 
   const sel = result?.selectivity
+  const fil = result?.filiation
 
   return (
     <div className="p-6 lg:p-8 max-w-6xl mx-auto">
@@ -81,6 +83,20 @@ export default function Coordination() {
               <Card title="Curvas tiempo-corriente">
                 <TccChart devices={[upstream, downstream]} iccKa={icc} />
               </Card>
+
+              {fil && (
+                <Card title="Filiación / cascada (backup)">
+                  <div className={`text-xs rounded-lg p-3 ${fil.allowable ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-600'}`}>
+                    {fil.message}
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-2">{fil.note}</p>
+                  <div className="mt-3 text-xs text-slate-600 space-y-1.5">
+                    <Row label="Ratio de calibres" value={`${fil.ratio}×`} />
+                    <Row label="Filiación por corriente" value={fil.currentBackup ? 'Sí' : 'No'} />
+                    <Row label="Filiación por umbral magnético" value={fil.magneticBackup ? 'Sí' : 'No'} />
+                  </div>
+                </Card>
+              )}
             </>
           )}
         </div>
@@ -93,12 +109,18 @@ function DeviceInput({ label, device, onChange }) {
   return (
     <div>
       <label className="block text-xs font-medium text-slate-600 mb-1.5">{label}</label>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <input type="number" className="input" value={device.rating}
           onChange={(e) => onChange({ ...device, rating: +e.target.value })} />
         <select className="input" value={device.curve}
           onChange={(e) => onChange({ ...device, curve: e.target.value })}>
           {BREAKER_CURVE_TYPES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+        </select>
+        <select className="input" value={device.technology ?? 'MCB'}
+          onChange={(e) => onChange({ ...device, technology: e.target.value })}>
+          <option value="MCB">MCB</option>
+          <option value="MCCB">MCCB</option>
+          <option value="FUSE">Fusible</option>
         </select>
       </div>
     </div>
@@ -118,15 +140,16 @@ function TccChart({ devices, iccKa }) {
   const yOf = (s) => H - margin - (Math.log10(s) - Math.log10(decades.min)) / (Math.log10(decades.max) - Math.log10(decades.min)) * (H - 2 * margin)
 
   const curvePoints = (device, color) => {
+    const magnetic = BREAKER_CURVE_TYPES.find((c) => c.id === device.curve)?.magnetic ?? 7.5
     const pts = []
     for (let i = 1; i <= 30; i++) {
-      const mult = device.magnetic * i / 30
+      const mult = magnetic * i / 30
       const current = mult * device.rating
       const tt = mult < 1.13 ? 1.5 / Math.pow(mult, 2) : 0.01
       pts.push([xOf(current), yOf(Math.min(Math.max(tt, decades.min), decades.max))])
     }
     // tramo instantáneo
-    pts.push([xOf(device.magnetic * device.rating * 20), yOf(0.01)])
+    pts.push([xOf(magnetic * device.rating * 20), yOf(0.01)])
     return pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0]},${p[1]}`).join(' ')
   }
 

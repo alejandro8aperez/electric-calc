@@ -3,6 +3,9 @@ import {
   nextSize, nextBreaker, nextBreakingCapacity, thermalTripRatio, tripTime,
   BREAKER_CURVE_TYPES, getLoadType, getMethod,
 } from '@/lib/electricalData'
+import {
+  ikAt, seriesZ, zFromIcc, cableZ, C_MAX, C_MIN,
+} from '@/lib/shortCircuit60909'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Motor de cálculo de circuitos — IEC 60364 / NEC / RETIE
@@ -82,12 +85,19 @@ export function calcCircuit(rawInput) {
   const kGroup = groupingFactor(grouping_count, method === 'E' || method === 'F')
   const kTotal = kTemp * kGroup
 
+  // 2b. Armónicos (triplens) — IEC 60364-5-52 §524 / NF C 15-100
+  //     > 33 % → sobredimensionar fase (1.45·Ib) y neutro = fase
+  //     15–33 % → neutro = fase
+  //     ≤ 15 %  → neutro reducido permitido
+  const harmonicFactor = triplen_percent > 33 ? 1.45 : triplen_percent > 15 ? 1.15 : 1.0
+  const sizingCurrent = round(designCurrent * harmonicFactor, 2)
+
   // 3. Selección de conductor por ampacidad corregida: Iz ≥ Ib
   let selected = SIZES[SIZES.length - 1]
   let correctedAmpacity = 0
   for (const s of SIZES) {
     const iz = ampacityOf(s, method, conductor_material, insulation) * kTotal
-    if (iz >= designCurrent) { selected = s; correctedAmpacity = iz; break }
+    if (iz >= sizingCurrent) { selected = s; correctedAmpacity = iz; break }
   }
   if (!correctedAmpacity) correctedAmpacity = ampacityOf(selected, method, conductor_material, insulation) * kTotal
 
@@ -98,7 +108,7 @@ export function calcCircuit(rawInput) {
   if (breaker > correctedAmpacity || tripRatio * breaker > 1.45 * correctedAmpacity) {
     for (const s of SIZES) {
       const iz = ampacityOf(s, method, conductor_material, insulation) * kTotal
-      if (iz >= designCurrent && breaker <= iz && tripRatio * breaker <= 1.45 * iz) {
+      if (iz >= sizingCurrent && breaker <= iz && tripRatio * breaker <= 1.45 * iz) {
         selected = s; correctedAmpacity = iz; break
       }
     }
@@ -121,9 +131,15 @@ export function calcCircuit(rawInput) {
   const lost = phases === 3 ? 3 * ibFloat * ibFloat * rOhm : 2 * ibFloat * ibFloat * rOhm
   const powerLoss = round(lost, 1)
 
-  // 7. Neutro y armónicos (triplens)
+  // 7. Neutro y armónicos (triplens) — zonas NFC / IEC
   const neutralCurrent = round(ibFloat * (triplen_percent / 100) * 3, 2)
-  const neutralSize = neutralCurrent > ibFloat * 0.5 || triplen_percent > 33 ? selected : nextSize(selected / 2)
+  const harmonicZone = triplen_percent > 33 ? 'high' : triplen_percent > 15 ? 'medium' : 'low'
+  let neutralSize
+  if (harmonicZone === 'low') {
+    neutralSize = selected <= 16 ? selected : nextSize(selected / 2)
+  } else {
+    neutralSize = selected
+  }
 
   // 8. Conductor de protección
   const pe = protectiveConductor(selected)
@@ -144,12 +160,14 @@ export function calcCircuit(rawInput) {
 
   // 12. Cumplimiento
   const checks = {
-    ampacity: correctedAmpacity >= designCurrent,
-    ampacityDetail: `Iz = ${correctedAmpacity} A ≥ Ib = ${designCurrent} A`,
+    ampacity: correctedAmpacity >= sizingCurrent,
+    ampacityDetail: `Iz = ${correctedAmpacity} A ≥ ${harmonicFactor > 1 ? '1.45/1.15·Ib' : 'Ib'} = ${sizingCurrent} A`,
     overload: breaker <= correctedAmpacity && tripRatio * breaker <= 1.45 * correctedAmpacity,
     overloadDetail: `In = ${breaker} A · I2 = ${round(tripRatio * breaker, 1)} A · 1.45·Iz = ${round(1.45 * correctedAmpacity, 1)} A`,
     regulation: regulation <= 5,
     regulationDetail: `ΔU = ${regulation} % (límite 5 %)`,
+    harmonics: harmonicFactor === 1.0 || correctedAmpacity >= sizingCurrent,
+    harmonicsDetail: `Triplens ${triplen_percent} % · zona ${harmonicZone} · neutro ${neutralSize} mm²`,
     shortCircuit: shortCircuit.withstandOk,
     shortCircuitDetail: shortCircuit.withstandDetail,
     magnetic: magneticOk,
@@ -161,6 +179,7 @@ export function calcCircuit(rawInput) {
     input,
     ib,
     designCurrent,
+    sizingCurrent,
     loadFactor: continuousFactor,
     demandPower: round(power_kw * demand_factor, 3),
     factors: { temp: round(kTemp, 3), grouping: round(kGroup, 3), total: round(kTotal, 3) },
@@ -170,6 +189,7 @@ export function calcCircuit(rawInput) {
       ampacityBase: ampacityOf(selected, method, conductor_material, insulation),
       correctedAmpacity,
     },
+    harmonic: { zone: harmonicZone, factor: harmonicFactor, triplen: triplen_percent, neutralCurrent },
     breaker,
     curve,
     protection_kind,
@@ -224,26 +244,26 @@ function num(v, fallback) {
 // Cortocircuito
 // ─────────────────────────────────────────────────────────────────────────────
 function calcShortCircuit({ voltage, phases, conductor_material, length_m, insulation, source_icc_ka, fault_duration_s, selected, thermalK }) {
-  // Impedancia de la fuente equivalente (mono/trifásico)
-  const vPh = phases === 3 ? voltage / Math.sqrt(3) : voltage
-  const isccSourceA = source_icc_ka * 1000
-  const zSource = vPh / isccSourceA
+  // Impedancia equivalente de la fuente (por Icc conocida, R/X = 0.1)
+  const src = zFromIcc({ iccKa: source_icc_ka, voltage, phases })
 
-  // Impedancia del cable (ida y vuelta)
-  const tempOp = insulation === 'XLPE' ? 90 : 70
-  const rCable = resistance(selected, conductor_material, tempOp) * (length_m / 1000) * 2
-  const xCable = reactance() * (length_m / 1000) * 2
+  // Tramo de cable: falta 3F (loop 1) y falta fase-neutro / tierra (loop 2)
+  const c3 = cableZ({ size: selected, material: conductor_material, insulation, lengthM: length_m, loop: 1 })
+  const c2 = cableZ({ size: selected, material: conductor_material, insulation, lengthM: length_m, loop: 2 })
+  const z3 = seriesZ(src, c3)
+  const z2 = seriesZ(src, c2)
 
-  const rTot = zSource * 0.1 + rCable
-  const xTot = zSource + xCable
-  const zTot = Math.sqrt(rTot * rTot + xTot * xTot)
-  const isccLoadA = vPh / zTot
-  const isccMinA = Math.round(isccLoadA * 0.9) // estimación de falla mínima
+  const atSource = ikAt({ voltage, phases, ...src, cmax: C_MAX, cmin: C_MIN })
+  const atLoad3 = ikAt({ voltage, phases, z: z3.z, r: z3.r, x: z3.x, cmax: C_MAX, cmin: C_MIN })
+  const atLoad1 = ikAt({ voltage, phases: 1, z: z2.z, r: z2.r, x: z2.x, cmax: C_MAX, cmin: C_MIN })
 
-  const breakingCapacity = nextBreakingCapacity(Math.max(source_icc_ka, isccLoadA / 1000))
+  const isccLoadA = Math.round(atLoad3.ikMaxA)
+  const isccMinA = Math.round(atLoad1.ikMinA) // falta mínima en el extremo (fase-neutro, cmin)
 
-  // Verificación térmica k²S² ≥ I²t
-  const iThermal = source_icc_ka * 1000
+  const breakingCapacity = nextBreakingCapacity(Math.max(source_icc_ka, atLoad3.ikMaxKa))
+
+  // Verificación térmica k²S² ≥ I²t (IEC 60364-4-43)
+  const iThermal = Math.max(source_icc_ka * 1000, atLoad3.ikMaxA)
   const energy = iThermal * iThermal * fault_duration_s
   const withstand = Math.pow(thermalK * selected, 2)
   const withstandOk = withstand >= energy
@@ -251,11 +271,18 @@ function calcShortCircuit({ voltage, phases, conductor_material, length_m, insul
 
   return {
     isccSourceKa: round(source_icc_ka, 2),
-    isccLoadKa: round(isccLoadA / 1000, 3),
+    isccLoadKa: round(atLoad3.ikMaxA / 1000, 3),
+    isccMinKa: round(isccMinA / 1000, 3),
     isccMinA,
+    ik3MaxKa: atLoad3.ikMaxKa,
+    ik3MinKa: atLoad3.ikMinKa,
+    ik1MaxKa: atLoad1.ikMaxKa,
+    peakKa: atLoad3.peakKa,
+    kappa: atLoad3.kappa,
+    ratioRX: atLoad3.ratioRX,
     breakingCapacityKa: breakingCapacity,
-    zSource: round(zSource, 5),
-    zTotal: round(zTot, 5),
+    zSource: round(src.z, 5),
+    zTotal: round(z3.z, 5),
     energyKtA2s: round(energy / 1e6, 3),
     withstandK: round(withstand / 1e6, 3),
     withstandOk,

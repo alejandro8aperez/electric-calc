@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Plus, Copy, Trash2, Save, ArrowLeft, FileText, Zap, RefreshCw } from 'lucide-react'
 import { computePanel, balancePhases, PHASES } from '@/lib/panelCalc'
+import { calcSource, SOURCE_TYPES } from '@/lib/sourceCalc'
 import {
   INSTALLATION_METHODS, INSULATIONS, LOAD_TYPES, getMethod,
 } from '@/lib/electricalData'
@@ -32,6 +33,20 @@ export default function Panel() {
   }, [project])
 
   const updateSystem = (k, v) => setProject((p) => ({ ...p, system: { ...p.system, [k]: v } }))
+
+  const source = project.system.source ?? { type: 'by_icc', icc_ka: project.system.source_icc_ka }
+  const sourceResult = useMemo(() => {
+    try { return calcSource({ ...source, voltage: project.system.voltage, frequency: project.system.frequency }) }
+    catch { return null }
+  }, [source, project.system.voltage, project.system.frequency])
+  const updateSource = (patch) => {
+    const next = { ...source, ...patch }
+    let icc = project.system.source_icc_ka
+    try {
+      icc = calcSource({ ...next, voltage: project.system.voltage, frequency: project.system.frequency }).iccMaxKa
+    } catch { /* keep */ }
+    setProject((p) => ({ ...p, system: { ...p.system, source: next, source_icc_ka: icc } }))
+  }
   const updateCircuit = (id, k, v) => setProject((p) => ({
     ...p, circuits: p.circuits.map((c) => (c.id === id ? { ...c, [k]: v } : c)),
   }))
@@ -185,6 +200,28 @@ export default function Panel() {
             </div>
           </div>
 
+          <div className="mt-5 pt-4 border-t border-slate-100">
+            <h3 className="text-xs font-semibold text-slate-700 mb-3">Fuente · IEC 60909</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <Field label="Tipo de fuente">
+                  <select className="input" value={source.type} onChange={(e) => updateSource({ type: e.target.value })}>
+                    {SOURCE_TYPES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+                  </select>
+                </Field>
+              </div>
+              <SourceFields source={source} onChange={updateSource} />
+            </div>
+            {sourceResult && (
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <SummaryCard label="Icc máx (kA)" value={sourceResult.iccMaxKa} accent="red" />
+                <SummaryCard label="Icc mín (kA)" value={sourceResult.iccMinKa} accent="amber" />
+                <SummaryCard label="Icc pico (kA)" value={sourceResult.peakKa} />
+                <SummaryCard label="R/X" value={sourceResult.ratioRX ?? '—'} />
+              </div>
+            )}
+          </div>
+
           {panel && (
             <div className="mt-5 pt-4 border-t border-slate-100">
               <h3 className="text-xs font-semibold text-slate-700 mb-2">{t('panel.phaseBalance')}</h3>
@@ -315,4 +352,29 @@ function PhaseBars({ currents }) {
       ))}
     </div>
   )
+}
+
+function SourceFields({ source, onChange }) {
+  const n = (k, label, step = 1) => (
+    <Field key={k} label={label}>
+      <input type="number" step={step} className="input" value={source[k] ?? ''}
+        onChange={(e) => onChange({ [k]: +e.target.value })} />
+    </Field>
+  )
+  switch (source.type) {
+    case 'transformer':
+      return <>{n('kva', 'Potencia (kVA)', 1)}{n('uk_percent', 'uk (%)', 0.1)}{n('primary_voltage', 'V primaria (V)', 1)}{n('load_losses_w', 'Pérdidas cobre (W)', 10)}</>
+    case 'genset':
+      return <>{n('kva', 'Potencia (kVA)', 1)}{n('xd_percent', "X''d (%)", 0.1)}</>
+    case 'by_icc':
+      return n('icc_ka', 'Icc (kA)', 0.1)
+    case 'by_rx':
+      return <>{n('r_ohm', 'R (Ω)', 0.0001)}{n('x_ohm', 'X (Ω)', 0.0001)}</>
+    case 'monitored':
+      return n('sc_power_mva', 'Scc (MVA)', 1)
+    case 'battery':
+      return <>{n('dc_voltage', 'V CC (V)', 1)}{n('internal_resistance_mohm', 'Rint (mΩ)', 0.1)}</>
+    default:
+      return null
+  }
 }

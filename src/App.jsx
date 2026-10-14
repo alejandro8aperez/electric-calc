@@ -9,6 +9,7 @@ import Panel from '@/pages/Panel'
 import Coordination from '@/pages/Coordination'
 import Transformer from '@/pages/Transformer'
 import Motors from '@/pages/Motors'
+import PowerBalance from '@/pages/PowerBalance'
 import Report from '@/pages/Report'
 import PageNotFound from '@/lib/PageNotFound'
 
@@ -24,6 +25,7 @@ function App() {
             <Route path="/coordination" element={<Coordination />} />
             <Route path="/transformer" element={<Transformer />} />
             <Route path="/motors" element={<Motors />} />
+            <Route path="/balance" element={<PowerBalance />} />
             <Route path="/report" element={<Report />} />
           </Route>
           <Route path="*" element={<PageNotFound />} />

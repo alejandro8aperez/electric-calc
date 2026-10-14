@@ -3,6 +3,7 @@ import {
   SIZES, ampacityOf, temperatureFactor, groupingFactor, resistance, reactance,
   nextSize, nextBreaker, nextBreakingCapacity, getMethod,
 } from '@/lib/electricalData'
+import { ikAt, seriesZ, zFromIcc, cableZ, C_MAX, C_MIN } from '@/lib/shortCircuit60909'
 
 const round = (v, d = 2) => {
   const f = Math.pow(10, d)
@@ -119,6 +120,7 @@ export function computePanel(system, circuits = []) {
   })
   const feederBreaker = nextBreaker(boardCurrent)
   const feederDrop = round(feederFactorDrop(sys, feeder.size, boardCurrent, boardCurrent), 2)
+  const feederRegulation = round((feederDrop / sys.voltage) * 100, 2)
 
   // 7. Neutro del tablero (armónicos triplens)
   const triplenCurrent = round(computed.reduce((s, c) => s + c.neutralCurrent, 0), 1)
@@ -126,6 +128,13 @@ export function computePanel(system, circuits = []) {
 
   // 8. Icc en barras (con impedancia del alimentador)
   const isccBoard = calcBoardIcc(sys, feeder.size)
+
+  // 8b. Regulación amont (alimentador) / aval (circuito) / total
+  computed.forEach((c) => {
+    c.regulationUpstream = feederRegulation
+    c.regulationDownstream = c.regulation
+    c.regulationTotal = round(c.regulation + feederRegulation, 2)
+  })
 
   // 9. Desbalance recomendación
   const recommendation = imbalance > 15
@@ -142,14 +151,14 @@ export function computePanel(system, circuits = []) {
     boardCurrent,
     mainBreaker,
     busbar,
-    feeder: { ...feeder, breaker: feederBreaker, voltageDrop: feederDrop },
+    feeder: { ...feeder, breaker: feederBreaker, voltageDrop: feederDrop, regulation: feederRegulation },
     neutral: { size: neutralSize, current: triplenCurrent },
     phaseCurrents,
     imbalance,
     maxPhase,
     isccBoard,
     recommendation,
-    compliance: computed.every((c) => c.compliance === 'compliant') && imbalance <= 15 ? 'compliant' : 'review',
+    compliance: computed.every((c) => c.compliance === 'compliant' && c.regulationTotal <= 5) && imbalance <= 15 ? 'compliant' : 'review',
   }
 }
 
@@ -164,15 +173,16 @@ function feederFactorDrop(sys, size, current, ib) {
 }
 
 function calcBoardIcc(sys, feederSize) {
-  const vPh = sys.phases === 3 ? sys.voltage / Math.sqrt(3) : sys.voltage
-  const zSource = vPh / (sys.source_icc_ka * 1000)
-  const tempOp = sys.insulation === 'XLPE' ? 90 : 70
-  const rC = resistance(feederSize, sys.conductor_material, tempOp) * (sys.feeder_length_m / 1000) * 2
-  const xC = reactance() * (sys.feeder_length_m / 1000) * 2
-  const zTot = Math.sqrt(Math.pow(rC, 2) + Math.pow(zSource + xC, 2))
+  const src = zFromIcc({ iccKa: sys.source_icc_ka, voltage: sys.voltage, phases: sys.phases })
+  const c3 = cableZ({ size: feederSize, material: sys.conductor_material, insulation: sys.insulation, lengthM: sys.feeder_length_m, loop: 1 })
+  const z3 = seriesZ(src, c3)
+  const atBoard = ikAt({ voltage: sys.voltage, phases: sys.phases, z: z3.z, r: z3.r, x: z3.x, cmax: C_MAX, cmin: C_MIN })
   return {
-    isccKa: round(vPh / zTot / 1000, 2),
-    breakingCapacityKa: nextBreakingCapacity(vPh / zTot / 1000),
+    isccKa: atBoard.ikMaxKa,
+    isccMinKa: atBoard.ikMinKa,
+    peakKa: atBoard.peakKa,
+    kappa: atBoard.kappa,
+    breakingCapacityKa: nextBreakingCapacity(atBoard.ikMaxKa),
     sourceKa: sys.source_icc_ka,
   }
 }

@@ -130,6 +130,8 @@ export const LOAD_TYPES = [
   { id: 'hvac', label: 'Aire acondicionado / HVAC', demand: 0.9, triplen: 0, continuous: true },
   { id: 'kitchen', label: 'Cocina / cocción', demand: 0.8, triplen: 0, continuous: false },
   { id: 'computer', label: 'Centro de datos / IT', demand: 0.95, triplen: 33, continuous: true },
+  { id: 'evse', label: 'Recarga vehículo eléctrico (IRVE)', demand: 1.0, triplen: 0, continuous: true },
+  { id: 'dc', label: 'Carga CC (rectificadores)', demand: 1.0, triplen: 10, continuous: true },
   { id: 'special', label: 'Carga especial / crítica', demand: 1.0, triplen: 0, continuous: true },
 ]
 
