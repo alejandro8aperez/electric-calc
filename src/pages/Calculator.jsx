@@ -11,7 +11,7 @@ import { saveProject, getProject } from '@/lib/storage'
 const emptyInput = {
   name: '', description: '',
   power_kw: 10, voltage: 220, power_factor: 0.9, length_m: 30,
-  phases: 1, conductor_material: 'copper', ambient_temp: 30, installation_method: 'conduit_3',
+  phases: 1, conductor_material: 'copper', ambient_temp: 30, installation_method: 'C',
   fault_current_origin_ka: 10, fault_duration_s: 1, conduit_conductor_count: 3,
 }
 

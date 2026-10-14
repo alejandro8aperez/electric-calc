@@ -1,0 +1,276 @@
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// i18n — Español (ES) / Inglés (EN)
+// ─────────────────────────────────────────────────────────────────────────────
+const DICT = {
+  es: {
+    'app.name': 'Electric Calc',
+    'app.tagline': 'IEEE · NEC · RETIE · IEC 60364',
+    'app.footer': 'Suite de diseño eléctrico · Autónoma, sin backend',
+
+    'nav.projects': 'Proyectos',
+    'nav.calculator': 'Calculadora',
+    'nav.panel': 'Tableros',
+    'nav.coordination': 'Coordinación',
+    'nav.transformer': 'Transformador',
+    'nav.motors': 'Motores / GE',
+    'nav.report': 'Memoria',
+
+    'common.new': 'Nuevo proyecto',
+    'common.save': 'Guardar proyecto',
+    'common.saving': 'Guardando…',
+    'common.reset': 'Limpiar',
+    'common.back': 'Volver',
+    'common.loading': 'Cargando…',
+    'common.compliant': 'Conforme',
+    'common.review': 'Revisión',
+    'common.nonCompliant': 'No conforme',
+    'common.voltage': 'Tensión',
+    'common.current': 'Corriente',
+    'common.power': 'Potencia',
+    'common.length': 'Distancia',
+    'common.phase': 'Sistema',
+    'common.material': 'Material',
+    'common.insulation': 'Aislamiento',
+    'common.method': 'Método de instalación',
+    'common.ambient': 'Temp. ambiente',
+    'common.grouping': 'Circuitos agrupados',
+    'common.icc': 'Icc en origen',
+    'common.breaker': 'Protección',
+    'common.conductor': 'Conductor',
+    'common.regulation': 'Regulación',
+    'common.inputs': 'Datos de entrada',
+    'common.results': 'Resultados',
+    'common.circuit': 'Circuito',
+    'common.circuits': 'Circuitos',
+    'common.voltageDrop': 'Caída de tensión',
+    'common.powerLoss': 'Pérdidas',
+    'common.compliance': 'Cumplimiento',
+    'common.graph': 'Diagrama unifilar',
+    'common.print': 'Imprimir / PDF',
+
+    'projects.title': 'Proyectos eléctricos',
+    'projects.subtitle': 'Diseño de instalaciones de uso final conforme a IEEE · NEC · RETIE · IEC',
+    'projects.total': 'Total',
+    'projects.compliant': 'Conformes',
+    'projects.review': 'En revisión',
+    'projects.nonCompliant': 'No conformes',
+    'projects.empty': 'Aún no hay proyectos',
+    'projects.emptyCta': 'Comienza diseñando un tablero de distribución.',
+    'projects.openPanel': 'Abrir tablero',
+
+    'panel.title': 'Tablero de distribución',
+    'panel.subtitle': 'Dimensionamiento de circuitos, balance de fases y barraje',
+    'panel.system': 'Sistema',
+    'panel.addCircuit': 'Agregar circuito',
+    'panel.duplicate': 'Duplicar',
+    'panel.remove': 'Eliminar',
+    'panel.connectedPower': 'Potencia instalada',
+    'panel.demandPower': 'Potencia de demanda',
+    'panel.boardCurrent': 'Corriente de tablero',
+    'panel.mainBreaker': 'Interruptor general',
+    'panel.busbar': 'Barraje',
+    'panel.feeder': 'Alimentador',
+    'panel.neutral': 'Neutro',
+    'panel.imbalance': 'Desbalance de fases',
+    'panel.boardIcc': 'Icc en barras',
+    'panel.phaseBalance': 'Balance de fases',
+    'panel.schedule': 'Cuadro de cargas',
+    'panel.balanceAuto': 'Balanceo automático',
+
+    'transformer.title': 'Transformador de distribución',
+    'transformer.subtitle': 'Dimensionamiento, pérdidas y cortocircuito en secundario',
+    'transformer.loadKva': 'Carga (kVA)',
+    'transformer.primary': 'Tensión primaria (V)',
+    'transformer.secondary': 'Tensión secundaria (V)',
+    'transformer.impedance': '%Z',
+    'transformer.targetLoading': 'Carga objetivo',
+    'transformer.growth': 'Reserva de crecimiento (%)',
+    'transformer.rated': 'Potencia nominal',
+    'transformer.loading': 'Carga real',
+    'transformer.iPrimary': 'Corriente primaria',
+    'transformer.iSecondary': 'Corriente secundaria',
+    'transformer.iscc': 'Icc secundario',
+    'transformer.losses': 'Pérdidas totales',
+    'transformer.efficiency': 'Eficiencia',
+    'transformer.regulation': 'Regulación interna',
+
+    'motors.title': 'Motores, generador y UPS',
+    'motors.subtitle': 'Arranque de motores, grupo electrógeno y banco de baterías',
+    'motors.motorTab': 'Motor',
+    'motors.generatorTab': 'Generador',
+    'motors.upsTab': 'UPS / Baterías',
+    'motors.starting': 'Método de arranque',
+    'motors.startCurrent': 'Corriente de arranque',
+    'motors.dip': 'Caída de tensión en arranque',
+    'motors.contactor': 'Contactor',
+    'motors.thermalSetting': 'Ajuste térmico',
+    'motors.ratedGen': 'Generador recomendado',
+    'motors.transient': 'Carga transitoria',
+    'motors.fuel': 'Consumo estimado',
+    'motors.requiredAh': 'Capacidad de batería',
+    'motors.autonomy': 'Autonomía (min)',
+    'motors.dcBus': 'Bus DC (V)',
+    'motors.blocks': 'Bloques de batería',
+
+    'report.title': 'Memoria de cálculo',
+    'report.project': 'Proyecto',
+    'report.summary': 'Resumen ejecutivo',
+    'report.generated': 'Generado',
+    'report.noData': 'Crea un proyecto con circuitos para generar la memoria.',
+  },
+  en: {
+    'app.name': 'Electric Calc',
+    'app.tagline': 'IEEE · NEC · RETIE · IEC 60364',
+    'app.footer': 'Electrical design suite · Standalone, no backend',
+
+    'nav.projects': 'Projects',
+    'nav.calculator': 'Calculator',
+    'nav.panel': 'Panels',
+    'nav.coordination': 'Coordination',
+    'nav.transformer': 'Transformer',
+    'nav.motors': 'Motors / Gen',
+    'nav.report': 'Report',
+
+    'common.new': 'New project',
+    'common.save': 'Save project',
+    'common.saving': 'Saving…',
+    'common.reset': 'Reset',
+    'common.back': 'Back',
+    'common.loading': 'Loading…',
+    'common.compliant': 'Compliant',
+    'common.review': 'Review',
+    'common.nonCompliant': 'Non-compliant',
+    'common.voltage': 'Voltage',
+    'common.current': 'Current',
+    'common.power': 'Power',
+    'common.length': 'Length',
+    'common.phase': 'System',
+    'common.material': 'Material',
+    'common.insulation': 'Insulation',
+    'common.method': 'Installation method',
+    'common.ambient': 'Ambient temp.',
+    'common.grouping': 'Grouped circuits',
+    'common.icc': 'Source Isc',
+    'common.breaker': 'Protection',
+    'common.conductor': 'Conductor',
+    'common.regulation': 'Voltage drop',
+    'common.inputs': 'Input data',
+    'common.results': 'Results',
+    'common.circuit': 'Circuit',
+    'common.circuits': 'Circuits',
+    'common.voltageDrop': 'Voltage drop',
+    'common.powerLoss': 'Losses',
+    'common.compliance': 'Compliance',
+    'common.graph': 'Single-line diagram',
+    'common.print': 'Print / PDF',
+
+    'projects.title': 'Electrical projects',
+    'projects.subtitle': 'Final-circuit installation design per IEEE · NEC · RETIE · IEC',
+    'projects.total': 'Total',
+    'projects.compliant': 'Compliant',
+    'projects.review': 'Under review',
+    'projects.nonCompliant': 'Non-compliant',
+    'projects.empty': 'No projects yet',
+    'projects.emptyCta': 'Start by designing a distribution panel.',
+    'projects.openPanel': 'Open panel',
+
+    'panel.title': 'Distribution panel',
+    'panel.subtitle': 'Circuit sizing, phase balance and busbar',
+    'panel.system': 'System',
+    'panel.addCircuit': 'Add circuit',
+    'panel.duplicate': 'Duplicate',
+    'panel.remove': 'Remove',
+    'panel.connectedPower': 'Connected load',
+    'panel.demandPower': 'Demand load',
+    'panel.boardCurrent': 'Panel current',
+    'panel.mainBreaker': 'Main breaker',
+    'panel.busbar': 'Busbar',
+    'panel.feeder': 'Feeder',
+    'panel.neutral': 'Neutral',
+    'panel.imbalance': 'Phase imbalance',
+    'panel.boardIcc': 'Isc at busbar',
+    'panel.phaseBalance': 'Phase balance',
+    'panel.schedule': 'Panel schedule',
+    'panel.balanceAuto': 'Auto-balance',
+
+    'transformer.title': 'Distribution transformer',
+    'transformer.subtitle': 'Sizing, losses and secondary short-circuit',
+    'transformer.loadKva': 'Load (kVA)',
+    'transformer.primary': 'Primary voltage (V)',
+    'transformer.secondary': 'Secondary voltage (V)',
+    'transformer.impedance': '%Z',
+    'transformer.targetLoading': 'Target loading',
+    'transformer.growth': 'Growth reserve (%)',
+    'transformer.rated': 'Rated power',
+    'transformer.loading': 'Actual loading',
+    'transformer.iPrimary': 'Primary current',
+    'transformer.iSecondary': 'Secondary current',
+    'transformer.iscc': 'Secondary Isc',
+    'transformer.losses': 'Total losses',
+    'transformer.efficiency': 'Efficiency',
+    'transformer.regulation': 'Internal regulation',
+
+    'motors.title': 'Motors, generator and UPS',
+    'motors.subtitle': 'Motor starting, genset and battery bank',
+    'motors.motorTab': 'Motor',
+    'motors.generatorTab': 'Generator',
+    'motors.upsTab': 'UPS / Batteries',
+    'motors.starting': 'Starting method',
+    'motors.startCurrent': 'Starting current',
+    'motors.dip': 'Voltage dip on start',
+    'motors.contactor': 'Contactor',
+    'motors.thermalSetting': 'Thermal setting',
+    'motors.ratedGen': 'Recommended genset',
+    'motors.transient': 'Transient loading',
+    'motors.fuel': 'Estimated fuel',
+    'motors.requiredAh': 'Battery capacity',
+    'motors.autonomy': 'Autonomy (min)',
+    'motors.dcBus': 'DC bus (V)',
+    'motors.blocks': 'Battery blocks',
+
+    'report.title': 'Calculation report',
+    'report.project': 'Project',
+    'report.summary': 'Executive summary',
+    'report.generated': 'Generated',
+    'report.noData': 'Create a project with circuits to generate the report.',
+  },
+}
+
+const I18nContext = createContext(null)
+const LANG_KEY = 'electric-calc-lang'
+
+export function I18nProvider({ children }) {
+  const [lang, setLangState] = useState(() => {
+    try { return localStorage.getItem(LANG_KEY) || 'es' } catch { return 'es' }
+  })
+
+  useEffect(() => {
+    try { localStorage.setItem(LANG_KEY, lang) } catch { /* noop */ }
+    if (typeof document !== 'undefined') document.documentElement.lang = lang
+  }, [lang])
+
+  const setLang = useCallback((l) => setLangState(l === 'en' ? 'en' : 'es'), [])
+
+  const t = useCallback((key, vars) => {
+    const table = DICT[lang] ?? DICT.es
+    let str = table[key] ?? DICT.es[key] ?? key
+    if (vars) {
+      for (const [k, v] of Object.entries(vars)) str = str.replace(`{${k}}`, v)
+    }
+    return str
+  }, [lang])
+
+  return (
+    <I18nContext.Provider value={{ lang, setLang, t }}>
+      {children}
+    </I18nContext.Provider>
+  )
+}
+
+export function useI18n() {
+  const ctx = useContext(I18nContext)
+  if (!ctx) return { lang: 'es', setLang: () => {}, t: (k) => DICT.es[k] ?? k }
+  return ctx
+}
