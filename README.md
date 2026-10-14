@@ -15,8 +15,8 @@ IEEE 141 · NEC (220, 240, 250, 310) · RETIE · IEC 60364-4-43 / 5-52 / 5-54 ·
 - **Motores / Generador / UPS** — arranque de motores (DOL, estrella-triángulo, arrancador suave, VFD), caída de tensión en arranque, grupo electrógeno y banco de baterías.
 - **Bilan de potencia** — potencia instalada, de demanda, simultánea y de coincidencia (foisonnement), factor de potencia global y corrección de reactiva (compensación con condensadores).
 - **Coordinación** — selectividad por corriente, magnética y temporal, **filiación/cascada (backup, IEC 60947-2 Anexo A)**, capacidad de interrupción y curvas tiempo-corriente.
-- **Catálogo** — base de dispositivos editable (magnetotérmicos, cajas moldeadas, diferenciales, fusibles, contactores, gabinetes, barras, bornes), precios y curvas, import/export CSV o JSON.
-- **Presupuesto (BOM)** — selección automática de materiales del tablero (protecciones por calibre/curva/poder de corte, diferenciales según tipo de carga, bornes, gabinete con reserva), cantidades y precios editables, totales con descuento/impuesto y export CSV.
+- **Catálogo** — base de dispositivos editable (magnetotérmicos, cajas moldeadas, diferenciales, fusibles, contactores, gabinetes, barras, bornes), precios y curvas, import/export CSV o JSON. Incluye series reales de fabricante (Schneider Acti9/ComPact NSX, ABB System pro M/Tmax XT, Siemens SENTRON 5SL/5SY/3VA, Legrand DX3/DPX3) con In, curvas, Icu y módulos; admite datos **EDIELEC** vía import.
+- **Presupuesto (BOM)** — selección automática de materiales del tablero (protecciones por calibre/curva/poder de corte, diferenciales según tipo de carga, bornes, gabinete con reserva), con **preferencia de fabricante**, cantidades y precios editables, totales con descuento/impuesto y export CSV.
 - **Esquema de red** — unifilar multinivel de la red de tableros (jerarquía aguas arriba/abajo), cascada de Icc y regulación acumulada, verificaciones normativas, folios y bornera con numeración de bornes, export **DXF** (CAD), **SVG** y CSV.
 - **Demanda y flujo de carga** — dimensionamiento por **demanda máxima coincidente** a partir de curvas horarias (24 h) por tipo de carga (perfil diario), factor de coincidencia y utilización, y flujo de carga simplificado por nivel de la red (carga y tensión de barra en la hora punta).
 - **Memoria de cálculo** — reporte imprimible (Imprimir → Guardar como PDF) con resumen, cuadro de cargas, unifilar y verificaciones normativas.
@@ -37,6 +37,7 @@ IEEE 141 · NEC (220, 240, 250, 310) · RETIE · IEC 60364-4-43 / 5-52 / 5-54 ·
 - Red multinivel: Icc en barras del tablero aguas arriba alimenta al tablero aguas abajo (cascada de impedancias) y regulación de tensión acumulada hasta cada carga.
 - Verificaciones de red: caída de tensión total fuente → carga (límite 5 %), disparo ante la falta mínima (IEC 60364-4-41), verificación térmica k²S² ≥ I²t y selectividad entre niveles (IEC 60947-2). Poder de corte requerido (Icu) por tablero.
 - Demanda máxima coincidente por curvas horarias de 24 h (perfil por tipo de carga): el tablero y su alimentador se dimensionan por el pico coincidente, no por la potencia instalada. Flujo de carga por nivel con agregación aguas arriba de las series (coincidencia entre niveles) y tensión de barra estimada.
+- Coordinación con **tablas de fabricante**: selectividad (discriminación) y filiación/cascada (IEC 60947-2 Anexo A) por par de aparatos, con respaldo al cálculo algorítmico cuando no existe tabla y etiqueta de origen (fabricante vs calculado).
 
 ## Idiomas
 

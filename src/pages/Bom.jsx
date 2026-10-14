@@ -4,6 +4,7 @@ import { ArrowLeft, Download, Printer, RefreshCw } from 'lucide-react'
 import { computePanel } from '@/lib/panelCalc'
 import { buildBom, bomTotals, bomToCsv } from '@/lib/bom'
 import { loadCatalog, getCurrency } from '@/lib/catalogStore'
+import { manufacturerList } from '@/lib/manufacturerData'
 import { listProjects } from '@/lib/storage'
 import { useI18n } from '@/lib/i18n'
 import { Field, SummaryCard, Panel as Card } from '@/components/ui/kit'
@@ -13,7 +14,7 @@ export default function Bom() {
   const projects = useMemo(() => listProjects(), [])
   const [projectId, setProjectId] = useState(projects[0]?.id ?? '')
   const [settings, setSettings] = useState({
-    discountPct: 0, taxPct: 19, reservePct: 20, currency: getCurrency(),
+    discountPct: 0, taxPct: 19, reservePct: 20, currency: getCurrency(), manufacturer: '',
   })
   const [lines, setLines] = useState([])
   const [panelInfo, setPanelInfo] = useState(null)
@@ -64,11 +65,17 @@ export default function Bom() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6 print:hidden">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-6 print:hidden">
         <Field label={t('report.project')}>
           <select className="input" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
             {projects.length === 0 && <option value="">{t('bom.noProject')}</option>}
             {projects.map((p) => <option key={p.id} value={p.id}>{p.name || p.id}</option>)}
+          </select>
+        </Field>
+        <Field label={t('bom.manufacturer')}>
+          <select className="input" value={settings.manufacturer} onChange={(e) => setSettings({ ...settings, manufacturer: e.target.value })}>
+            <option value="">{t('bom.anyManufacturer')}</option>
+            {manufacturerList().map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
         </Field>
         <Field label={`${t('bom.discount')} (%)`}>

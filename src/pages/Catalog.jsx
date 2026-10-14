@@ -23,6 +23,7 @@ export default function Catalog() {
   const [catalog, setCatalog] = useState(() => loadCatalog())
   const [query, setQuery] = useState('')
   const [family, setFamily] = useState('')
+  const [manufacturer, setManufacturer] = useState('')
   const [currency, setCur] = useState(() => getCurrency())
   const [draft, setDraft] = useState(null)
   const csvInput = useRef(null)
@@ -32,10 +33,11 @@ export default function Catalog() {
     const q = query.trim().toLowerCase()
     return catalog.filter((d) => {
       if (family && d.family !== family) return false
+      if (manufacturer && d.manufacturer !== manufacturer) return false
       if (!q) return true
       return `${d.reference} ${d.description} ${d.manufacturer} ${d.series}`.toLowerCase().includes(q)
     })
-  }, [catalog, query, family])
+  }, [catalog, query, family, manufacturer])
 
   const counts = useMemo(() => {
     const c = {}
@@ -111,6 +113,10 @@ export default function Catalog() {
             <option value="">{t('catalog.allFamilies')}</option>
             {FAMILIES.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
           </select>
+          <select className="input !w-auto" value={manufacturer} onChange={(e) => setManufacturer(e.target.value)}>
+            <option value="">{t('catalog.allManufacturers')}</option>
+            {MANUFACTURERS.map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
           <span className="text-xs text-slate-400 ml-auto">{filtered.length} / {catalog.length}</span>
         </div>
 
@@ -141,6 +147,7 @@ export default function Catalog() {
             <thead>
               <tr className="text-left text-slate-500 border-b border-slate-200">
                 <th className="py-2 px-2 font-medium">{t('catalog.reference')}</th>
+                <th className="py-2 px-2 font-medium">{t('catalog.manufacturer')}</th>
                 <th className="py-2 px-2 font-medium">Familia</th>
                 <th className="py-2 px-2 font-medium">In (A)</th>
                 <th className="py-2 px-2 font-medium">Polos</th>
@@ -157,6 +164,7 @@ export default function Catalog() {
                     <input className="input !py-1 !text-xs" value={d.reference}
                       onChange={(e) => setCatalog(upsertDevice(catalog, { ...d, reference: e.target.value }))} />
                   </td>
+                  <td className="py-1.5 px-2 text-slate-500">{d.manufacturer ?? '—'}</td>
                   <td className="py-1.5 px-2 text-slate-500">{familyLabel(d.family)}</td>
                   <td className="py-1.5 px-2 text-slate-700">{d.rating_A ?? '—'}</td>
                   <td className="py-1.5 px-2 text-slate-700">{d.poles ?? '—'}</td>

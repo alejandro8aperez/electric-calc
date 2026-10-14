@@ -1,4 +1,5 @@
 import { BREAKER_CURVE_TYPES, tripTime, nextBreakingCapacity } from '@/lib/electricalData'
+import { lookupSelectivity, evaluateSelectivityRule, lookupBackup } from '@/lib/coordinationTables'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Coordinación de protecciones — selectividad y capacidad de interrupción
@@ -36,12 +37,26 @@ export function checkSelectivity(upstream, downstream, iccKa, curveId) {
   // 4. Límite de corriente de selectividad (kA) — por debajo del cual es selectivo
   const selectiveUpToKa = round(Math.min(upMagneticA, iccKa * 1000) / 1000, 2)
 
-  const selective = (currentSelective && timeSelective) || magneticSelective
+  // 5. Tabla de coordinación de fabricante (si existe para el par ensayado)
+  const rule = lookupSelectivity(up, down)
+  let selective
+  let source
+  if (rule) {
+    selective = evaluateSelectivityRule(rule, up, down, iccKa)
+    source = 'manufacturer'
+  } else {
+    selective = (currentSelective && timeSelective) || magneticSelective
+    source = 'computed'
+  }
 
   return {
     selective,
+    source,
+    rule: rule?.type ?? null,
+    ruleBasis: rule?.basis ?? null,
+    ruleLimitKa: rule?.default ?? (rule?.upToKa !== Infinity ? rule?.upToKa : null) ?? null,
     ratio: round(ratio, 2),
-    requiredRatio,
+    requiredRatio: rule?.minRatio ?? requiredRatio,
     currentSelective,
     magneticSelective,
     timeSelective,
@@ -67,16 +82,23 @@ export function checkFiliation(upstream, downstream, iccKa) {
   const ratio = up.rating / down.rating
   const currentBackup = ratio >= 1.2
   const magneticBackup = up.rating * curveMagnetic(up.curve) > down.rating * curveMagnetic(down.curve)
-  const allowable = currentBackup && magneticBackup
+  const backup = lookupBackup(up, down)
+  const fromTable = !!backup
+  const allowable = backup?.boostedIcu != null ? true : (currentBackup && magneticBackup)
 
   return {
     allowable,
+    source: fromTable ? 'manufacturer' : 'computed',
+    boostedIcu: backup?.boostedIcu ?? null,
+    basis: backup?.basis ?? null,
     ratio: round(ratio, 2),
     currentBackup,
     magneticBackup,
     iccKa,
     message: allowable
-      ? `Filiación admisible: ${down.name} puede respaldar a ${up.name}. Verificar tabla del fabricante.`
+      ? (fromTable
+        ? `Filiación de fabricante: ${down.name} respaldado por ${up.name}${backup.boostedIcu ? ` (Icu aguas abajo hasta ${backup.boostedIcu} kA)` : ''}.`
+        : `Filiación admisible: ${down.name} puede respaldar a ${up.name}. Verificar tabla del fabricante.`)
       : 'No se garantiza filiación sin ensayo; exigir Pdc ≥ Icc disponible.',
     note: 'La filiación solo es válida con combinaciones ensayadas por el fabricante (IEC 60947-2 Anexo A).',
   }
@@ -125,6 +147,8 @@ function normalizeDevice(d, fallbackCurve) {
     rating,
     curve,
     technology,
+    manufacturer: (typeof d === 'object' && d?.manufacturer) || null,
+    series: (typeof d === 'object' && d?.series) || null,
     curveDef,
   }
 }

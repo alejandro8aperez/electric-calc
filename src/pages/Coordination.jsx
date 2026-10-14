@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { ArrowLeft, Shield, CheckCircle2, XCircle } from 'lucide-react'
 import { selectInterruptingCapacity, checkSelectivity, checkCascade, checkFiliation, selectivityRatio } from '@/lib/coordinationCalc'
 import { BREAKER_CURVE_TYPES } from '@/lib/electricalData'
+import { manufacturerList, seriesOptions } from '@/lib/manufacturerData'
 import { useI18n } from '@/lib/i18n'
 import { Field, SummaryCard, Row, Panel as Card } from '@/components/ui/kit'
 
@@ -41,8 +42,8 @@ export default function Coordination() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card title={t('common.inputs')}>
           <div className="space-y-4">
-            <DeviceInput label="Protección aguas arriba" device={upstream} onChange={setUpstream} />
-            <DeviceInput label="Protección aguas abajo" device={downstream} onChange={setDownstream} />
+            <DeviceInput label="Protección aguas arriba" device={upstream} onChange={setUpstream} t={t} />
+            <DeviceInput label="Protección aguas abajo" device={downstream} onChange={setDownstream} t={t} />
             <Field label={`${t('common.icc')} (kA)`}>
               <input type="number" className="input" value={icc} onChange={(e) => setIcc(+e.target.value)} />
             </Field>
@@ -61,6 +62,9 @@ export default function Coordination() {
                 </div>
                 <p className="text-xs text-slate-600">
                   Ratio de calibres {sel.ratio}× · límite selectivo hasta {sel.selectiveUpToKa} kA
+                </p>
+                <p className="text-[10px] text-slate-500 mt-1">
+                  {sel.source === 'manufacturer' ? `Tabla de fabricante · ${sel.ruleBasis ?? ''} (${sel.rule})` : 'Cálculo algorítmico (sin tabla de fabricante)'}
                 </p>
               </div>
 
@@ -90,6 +94,9 @@ export default function Coordination() {
                     {fil.message}
                   </div>
                   <p className="text-[11px] text-slate-400 mt-2">{fil.note}</p>
+                  {fil.source === 'manufacturer' && (
+                    <p className="text-[10px] text-emerald-600 mt-1">Tabla de fabricante · {fil.basis}{fil.boostedIcu ? ` · Icu aguas abajo hasta ${fil.boostedIcu} kA` : ''}</p>
+                  )}
                   <div className="mt-3 text-xs text-slate-600 space-y-1.5">
                     <Row label="Ratio de calibres" value={`${fil.ratio}×`} />
                     <Row label="Filiación por corriente" value={fil.currentBackup ? 'Sí' : 'No'} />
@@ -105,7 +112,10 @@ export default function Coordination() {
   )
 }
 
-function DeviceInput({ label, device, onChange }) {
+function DeviceInput({ label, device, onChange, t }) {
+  const tech = device.technology ?? 'MCB'
+  const fam = tech === 'FUSE' ? null : tech
+  const series = fam ? seriesOptions(fam, device.manufacturer) : []
   return (
     <div>
       <label className="block text-xs font-medium text-slate-600 mb-1.5">{label}</label>
@@ -116,13 +126,27 @@ function DeviceInput({ label, device, onChange }) {
           onChange={(e) => onChange({ ...device, curve: e.target.value })}>
           {BREAKER_CURVE_TYPES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
         </select>
-        <select className="input" value={device.technology ?? 'MCB'}
-          onChange={(e) => onChange({ ...device, technology: e.target.value })}>
+        <select className="input" value={tech}
+          onChange={(e) => onChange({ ...device, technology: e.target.value, manufacturer: '', series: '' })}>
           <option value="MCB">MCB</option>
           <option value="MCCB">MCCB</option>
           <option value="FUSE">Fusible</option>
         </select>
       </div>
+      {fam && (
+        <div className="grid grid-cols-2 gap-3 mt-2">
+          <select className="input" value={device.manufacturer ?? ''}
+            onChange={(e) => onChange({ ...device, manufacturer: e.target.value, series: '' })}>
+            <option value="">{t('coordination.anyManufacturer')}</option>
+            {manufacturerList().map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+          <select className="input" value={device.series ?? ''}
+            onChange={(e) => onChange({ ...device, series: e.target.value })}>
+            <option value="">{t('coordination.anySeries')}</option>
+            {series.map((s) => <option key={s.series} value={s.series}>{s.series} · {s.icu} kA</option>)}
+          </select>
+        </div>
+      )}
     </div>
   )
 }

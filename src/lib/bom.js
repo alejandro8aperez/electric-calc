@@ -33,6 +33,16 @@ export function selectDevice(catalog, criteria = {}, { strictCurve = false } = {
   }
   if (!pool.length) return null
 
+  // Preferir fabricante indicado; si no hay, cualquiera del catálogo
+  if (criteria.manufacturer) {
+    const byMaker = pool.filter((d) => d.manufacturer === criteria.manufacturer)
+    if (byMaker.length) pool = byMaker
+  }
+  if (criteria.series) {
+    const bySeries = pool.filter((d) => d.series === criteria.series)
+    if (bySeries.length) pool = bySeries
+  }
+
   // Preferir mismo tipo de diferencial y misma curva
   if (criteria.rcd_type) {
     const typed = pool.filter((d) => d.rcd_type === criteria.rcd_type)
@@ -61,6 +71,7 @@ export function buildBom(panel, opts = {}) {
   const catalog = opts.catalog ?? buildBuiltinCatalog()
   const currency = opts.currency ?? 'COP'
   const reservePct = opts.reservePct ?? 20
+  const manufacturer = opts.manufacturer ?? null
   const lines = []
 
   const push = (device, qty, source, { unitPrice, description } = {}) => {
@@ -107,7 +118,7 @@ export function buildBom(panel, opts = {}) {
     const family = protectionFamily(c.breaker, breaking, c.protection_kind)
     const dev = selectDevice(catalog, {
       family, rating_A: c.breaker, poles, curve: c.curve,
-      breaking_capacity_kA: breaking,
+      breaking_capacity_kA: breaking, manufacturer,
     }, { strictCurve: true })
     if (dev) push(dev, 1, `Q${i + 1} · ${c.input.name}`)
     else pushGeneric({
@@ -118,7 +129,7 @@ export function buildBom(panel, opts = {}) {
 
     const rcd = rcdRequirement(c.input.load_type)
     if (rcd) {
-      const r = selectDevice(catalog, { family: 'RCD', rating_A: c.breaker, poles, ...rcd })
+      const r = selectDevice(catalog, { family: 'RCD', rating_A: c.breaker, poles, ...rcd, manufacturer })
       if (r) push(r, 1, `QD${i + 1} · ${c.input.name}`)
     }
 
@@ -136,7 +147,7 @@ export function buildBom(panel, opts = {}) {
   const mainFamily = protectionFamily(panel.mainBreaker, mainBreaking, 'MCB')
   const mainDev = selectDevice(catalog, {
     family: mainFamily, rating_A: panel.mainBreaker, poles: mainPoles,
-    breaking_capacity_kA: mainBreaking,
+    breaking_capacity_kA: mainBreaking, manufacturer,
   })
   if (mainDev) push(mainDev, 1, 'Interruptor general (IG)')
   else pushGeneric({
@@ -161,7 +172,7 @@ export function buildBom(panel, opts = {}) {
   return {
     lines: merged,
     totals,
-    meta: { currency, usedModules, requiredModules, reservePct, generated: new Date().toISOString() },
+    meta: { currency, manufacturer, usedModules, requiredModules, reservePct, generated: new Date().toISOString() },
   }
 }
 

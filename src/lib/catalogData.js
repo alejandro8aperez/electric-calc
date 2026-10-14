@@ -1,3 +1,5 @@
+import { buildManufacturerCatalog } from '@/lib/manufacturerData'
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Catálogo de dispositivos — datos de referencia editables
 // Precios indicativos (editables) en la moneda configurada del proyecto.
@@ -198,6 +200,7 @@ export function buildBuiltinCatalog() {
     ...buildMcb(), ...buildMccb(), ...buildRcd(), ...buildFuses(),
     ...buildContactors(), ...buildEnclosures(), ...buildBusbars(),
     ...buildTerminals(), ...buildLabels(),
+    ...buildManufacturerCatalog(),
   ]
 }
 
